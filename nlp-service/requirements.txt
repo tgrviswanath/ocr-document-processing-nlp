@@ -1,0 +1,13 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pydantic-settings==2.2.1
+python-multipart==0.0.9
+pytesseract==0.3.10
+Pillow==10.3.0
+opencv-python-headless==4.9.0.80
+PyMuPDF==1.24.3
+spacy==3.7.4
+sentence-transformers==2.7.0
+faiss-cpu==1.8.0
+ollama==0.2.1
+numpy==1.26.4
