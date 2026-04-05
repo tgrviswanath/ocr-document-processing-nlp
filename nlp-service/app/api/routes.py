@@ -1,10 +1,12 @@
+import asyncio
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from app.core.service import process_document, query_document, get_document
 
-router = APIRouter(prefix="/api/v1/nlp", tags=["ocr"])
-
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 ALLOWED_EXTS = {"pdf", "png", "jpg", "jpeg", "tiff", "tif", "bmp", "webp"}
+
+router = APIRouter(prefix="/api/v1/nlp", tags=["ocr"])
 
 
 class QueryInput(BaseModel):
@@ -20,20 +22,30 @@ async def upload(file: UploadFile = File(...)):
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Max 50MB")
     try:
-        return process_document(file.filename, content)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, process_document, file.filename, content)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/query")
-def query(body: QueryInput):
+async def query(body: QueryInput):
     if not body.question.strip():
         raise HTTPException(status_code=400, detail="question cannot be empty")
     try:
-        return query_document(body.doc_id, body.question)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, query_document, body.doc_id, body.question)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/document/{doc_id}")
